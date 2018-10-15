@@ -7,6 +7,8 @@ import seaborn as sns
 
 filename = 'uf20-01.cnf'
 max_iterations = 250000
+t0 = 100
+tf = 1
 
 with open(filename,'r') as file:
      all_lines = file.readlines()
@@ -66,9 +68,15 @@ def random_search(clauses, solution):
 
     return solution, score
 
+
+def next_temperature(i):
+    return t0*(tf/t0)**(i/max_iterations)
+
+
 def simmulated_annealing(clauses, solution):
     ## TO DO
     new_solution = solution
+    temperature = t0
     score = evaluate_all(clauses, solution)
     iterations = 0
 
@@ -79,12 +87,13 @@ def simmulated_annealing(clauses, solution):
         disturbance = randint(0, len(solution)-1)
         new_solution[disturbance] = 1 - solution[disturbance]
         new_score = evaluate_all(clauses, new_solution)
-        if new_score >= score:
+        delta = new_score - score
+        if delta <= 0 or rand() < exp(-delta/temperature):
             solution = new_solution
             score = new_score
-        else:
-            new_solution = solution
         scores.append(score)
+        temperature = next_temperature(iterations)
+
     print(len(np.arange(max_iterations)), len(scores))
     sns.lineplot(x=np.arange(max_iterations), y=scores)
     plt.savefig('simmulated_annealing_convergence.png')
