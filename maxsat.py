@@ -1,11 +1,11 @@
 from random import randint, random
 import numpy as np
-#import matplotlib
-#matplotlib.use('agg')
-#import matplotlib.pyplot as plt
-#import seaborn as sns
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-filename = 'uf100-01.cnf'
+filename = 'uf20-01.cnf'
 max_iterations = 250000
 t0 = 100
 tf = 1
@@ -50,10 +50,11 @@ def random_search(clauses, n_vars):
         iterations += 1
         solution = initial_solution(n_vars)
         score = evaluate_all(clauses, solution)
+        print(iterations)
         scores.append(score)
 
-    #sns.lineplot(x=np.arange(max_iterations), y=scores)
-    #plt.savefig('random_search_convergence.png')
+    sns.lineplot(x=np.arange(max_iterations), y=scores)
+    plt.savefig('random_search_convergence.png')
 
     return max(scores)
 
@@ -79,11 +80,12 @@ def simmulated_annealing(clauses, n_vars):
         if delta <= 0 or random() < np.exp(-delta/temperature):
             solution = new_solution
             score = new_score
+        print(iterations)
         scores.append(score)
         temperature = next_temperature(iterations)
 
-    #sns.lineplot(x=np.arange(max_iterations), y=scores)
-    #plt.savefig('simmulated_annealing_convergence.png')
+    sns.lineplot(x=np.arange(max_iterations), y=scores)
+    plt.savefig('simmulated_annealing_convergence.png')
 
     return score
 
@@ -104,7 +106,7 @@ for line in all_lines:
         v1, v2, v3, _ = line.split()
         clauses.append([to_tuple(v1), to_tuple(v2), to_tuple(v3)])
 
-score = random_search(clauses, n_vars)
-print(score)
+#score = random_search(clauses, n_vars)
+#print(score)
 score = simmulated_annealing(clauses, n_vars)
 print(score)
