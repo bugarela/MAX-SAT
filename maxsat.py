@@ -44,29 +44,22 @@ def evaluate_all(clauses, solution):
     return count
 
 
-def random_search(clauses, solution):
-    new_solution = solution
-    score = evaluate_all(clauses, solution)
+def random_search(clauses, n_vars):
     iterations = 0
 
     scores = []
 
     while iterations < max_iterations:
         iterations += 1
-        disturbance = randint(0, len(solution)-1)
-        new_solution[disturbance] = 1 - solution[disturbance]
-        new_score = evaluate_all(clauses, new_solution)
-        if new_score >= score:
-            solution = new_solution
-            score = new_score
-        else:
-            new_solution = solution
+        solution = initial_solution(n_vars)
+        score = evaluate_all(clauses, solution)
         scores.append(score)
+
     print(len(np.arange(max_iterations)), len(scores))
     sns.lineplot(x=np.arange(max_iterations), y=scores)
     plt.savefig('random_search_convergence.png')
 
-    return solution, score
+    return max(scores)
 
 
 def next_temperature(i):
@@ -98,7 +91,7 @@ def simmulated_annealing(clauses, solution):
     sns.lineplot(x=np.arange(max_iterations), y=scores)
     plt.savefig('simmulated_annealing_convergence.png')
 
-    return solution, score
+    return score
 
 clauses = []
 for line in all_lines:
@@ -114,5 +107,5 @@ for line in all_lines:
         v1, v2, v3, _ = line.split()
         clauses.append([to_tuple(v1), to_tuple(v2), to_tuple(v3)])
 
-solution, score = random_search(clauses, initial_solution(n_vars))
+solution, score = random_search(clauses, n_vars)
 print(solution, score)
