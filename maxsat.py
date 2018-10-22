@@ -7,8 +7,8 @@ import seaborn as sns
 
 filename = 'uf20-01.cnf'
 max_iterations = 250000
-t0 = 100
-tf = 1
+t0 = 50
+tf = 0
 
 
 def initial_solution(n_vars):
@@ -60,37 +60,51 @@ def random_search(clauses, n_vars):
 
 
 def next_temperature(i):
-    return t0*(tf/t0)**(i/max_iterations)
+    # return t0*(tf/t0)**(i/max_iterations)
+    # return t0 - i*((t0-tf)/max_iterations)
+
+    return (t0-tf)/(np.cosh(10*i/max_iterations)) + tf
+
+    # too greedy:
+    # a = ((t0 - tf)*(max_iterations + 1))/max_iterations
+    # b = t0 - a
+    # return (a/(i+1) + b)
 
 
 def simmulated_annealing(clauses, n_vars):
     new_solution = solution = initial_solution(n_vars)
-    temperature = t0
     score = evaluate_all(clauses, solution)
+    temperature = t0
     iterations = 0
 
     scores = []
 
     while iterations < max_iterations:
-        iterations += 1
         disturbance = randint(0, len(solution)-1)
         new_solution[disturbance] = 1 - solution[disturbance]
         new_score = evaluate_all(clauses, new_solution)
-        delta = new_score - score
+        delta = (n_vars - new_score) - (n_vars - score)
         if delta <= 0 or random() < np.exp(-delta/temperature):
             solution = new_solution
             score = new_score
-        print(iterations)
+        if iterations % 1000 == 0:
+            print(temperature)
+        iterations += 1
         scores.append(score)
         temperature = next_temperature(iterations)
 
-    sns.lineplot(x=np.arange(max_iterations), y=scores)
-    plt.savefig('simmulated_annealing_convergence.png')
+    fig, ax = plt.subplots()
+    # the size of A4 paper
+    fig.set_size_inches(11.7, 8.27)
+    sns.lineplot(x=np.arange(max_iterations), y=scores, lw=.2, ax=ax)
+    sns.despine()
+    fig.savefig('simmulated_annealing_convergence.png')
 
     return score
 
-with open(filename,'r') as file:
-     all_lines = file.readlines()
+
+with open(filename, 'r') as file:
+    all_lines = file.readlines()
 
 clauses = []
 for line in all_lines:
@@ -107,6 +121,6 @@ for line in all_lines:
         clauses.append([to_tuple(v1), to_tuple(v2), to_tuple(v3)])
 
 #score = random_search(clauses, n_vars)
-#print(score)
+# print(score)
 score = simmulated_annealing(clauses, n_vars)
 print(score)
