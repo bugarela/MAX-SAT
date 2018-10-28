@@ -4,10 +4,11 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 
-filename = 'uf20-01.cnf'
+instance = 'uf250-01'
 max_iterations = 250000
-t0 = 50
+t0 = 100
 tf = 0
 
 
@@ -41,22 +42,28 @@ def evaluate_all(clauses, solution):
     return count
 
 
-def random_search(clauses, n_vars):
-    iterations = 0
+def random_search(clauses, initial_solutions, n_vars):
+    all_scores = []
 
-    scores = []
+    for i in range(10):
+        iterations = 0
+        scores = []
 
-    while iterations < max_iterations:
-        iterations += 1
-        solution = initial_solution(n_vars)
-        score = evaluate_all(clauses, solution)
-        print(iterations)
-        scores.append(score)
+        while iterations < max_iterations:
+            iterations += 1
+            solution = initial_solution(n_vars)
+            score = evaluate_all(clauses, solution)
+            scores.append(score)
 
-    sns.lineplot(x=np.arange(max_iterations), y=scores)
-    plt.savefig('random_search_convergence.png')
+        all_scores.append(scores)
 
-    return max(scores)
+    all_scores = np.array(all_scores)
+    df = pd.DataFrame(all_scores.mean(axis=0), np.arange(max_iterations), columns=['score'])
+    plot_convergence(df, 'random_search')
+
+    best_scores = all_scores.max(axis=1)
+
+    return best_scores.mean(), best_scores.std()
 
 
 def next_temperature(i):
@@ -64,45 +71,76 @@ def next_temperature(i):
     # return t0 - i*((t0-tf)/max_iterations)
 
     return (t0-tf)/(np.cosh(10*i/max_iterations)) + tf
+    # return (t0-tf)/float(1 + np.exp(3*(i-max_iterations/2.0))) + tf
+    # return t0 - i**(np.log(t0-tf)/np.log(max_iterations))
 
     # too greedy:
     # a = ((t0 - tf)*(max_iterations + 1))/max_iterations
     # b = t0 - a
     # return (a/(i+1) + b)
 
+    #a = 1/(max_iterations**2)*np.log(t0/tf)
+    # return t0*np.exp(-a*i**2)
 
-def simmulated_annealing(clauses, n_vars):
-    new_solution = solution = initial_solution(n_vars)
-    score = evaluate_all(clauses, solution)
-    temperature = t0
-    iterations = 0
+    # return 0.5*(t0-tf)*(1-np.tanh(10*i/max_iterations - 5)) + tf
 
-    scores = []
+    # return 0.5*(t0-tf)*(1+np.cos(np.pi*i/max_iterations)) + tf
 
-    while iterations < max_iterations:
-        disturbance = randint(0, len(solution)-1)
-        new_solution[disturbance] = 1 - solution[disturbance]
-        new_score = evaluate_all(clauses, new_solution)
-        delta = (n_vars - new_score) - (n_vars - score)
-        if delta <= 0 or random() < np.exp(-delta/temperature):
-            solution = new_solution
-            score = new_score
-        if iterations % 1000 == 0:
-            print(temperature)
-        iterations += 1
-        scores.append(score)
-        temperature = next_temperature(iterations)
+
+def simmulated_annealing(clauses, initial_solutions, n_vars):
+    all_scores = []
+
+    for i in range(10):
+        new_solution = solution = initial_solutions[i]
+        score = evaluate_all(clauses, solution)
+        temperature = t0
+        iterations = 0
+
+        scores = []
+
+        while iterations < max_iterations:
+            disturbance = randint(0, len(solution)-1)
+            new_solution[disturbance] = 1 - solution[disturbance]
+            new_score = evaluate_all(clauses, new_solution)
+            delta = (n_vars - new_score) - (n_vars - score)
+            if delta <= 0 or random() < np.exp(-delta/temperature):
+                solution = new_solution
+                score = new_score
+            iterations += 1
+            # if (iterations % 1000 == 0):
+            # print(temperature)
+            scores.append(score)
+            temperature = next_temperature(iterations)
+
+        print(score)
+        all_scores.append(scores)
+
+    all_scores = np.array(all_scores)
+    df = pd.DataFrame(all_scores.mean(axis=0), np.arange(max_iterations), columns=['score'])
+    plot_convergence(df, 'simmulated_annealing')
+
+    best_scores = all_scores.max(axis=1)
+
+    return best_scores.mean(), best_scores.std()
+
+    # return all_scores.mean(axis=0)[-1], all_scores.std(axis=0)[-1]
+
+
+def plot_convergence(df, name):
+    fig, ax = plt.subplots()
+    fig.set_size_inches(30, 8.27)
+    sns.lineplot(data=df, lw=.2, ax=ax, estimator=None)
+    sns.despine()
+    fig.savefig('{}_{}_convergence.png'.format(instance, name))
 
     fig, ax = plt.subplots()
-    # the size of A4 paper
-    fig.set_size_inches(11.7, 8.27)
-    sns.lineplot(x=np.arange(max_iterations), y=scores, lw=.2, ax=ax)
+    fig.set_size_inches(30, 8.27)
+    sns.lineplot(data=df.rolling(1000).mean(), ax=ax)
     sns.despine()
-    fig.savefig('simmulated_annealing_convergence.png')
-
-    return score
+    fig.savefig('{}_{}_convergence_agg.png'.format(instance, name))
 
 
+filename = "{}.cnf".format(instance)
 with open(filename, 'r') as file:
     all_lines = file.readlines()
 
@@ -120,7 +158,9 @@ for line in all_lines:
         v1, v2, v3, _ = line.split()
         clauses.append([to_tuple(v1), to_tuple(v2), to_tuple(v3)])
 
-#score = random_search(clauses, n_vars)
-# print(score)
-score = simmulated_annealing(clauses, n_vars)
-print(score)
+initial_solutions = [initial_solution(n_vars) for _ in range(10)]
+
+mean, std = simmulated_annealing(clauses, initial_solutions, n_vars)
+print("SA: {} +- {}".format(mean, std))
+mean, std = random_search(clauses, initial_solutions, n_vars)
+print("RS: {} +- {}".format(mean, std))
